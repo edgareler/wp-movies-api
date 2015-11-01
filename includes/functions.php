@@ -22,6 +22,14 @@ function wma_create_post_type() {
     ));
 }
 
+function wma_type_to_query( $query ) {
+    if ( is_home() && $query->is_main_query() ){
+        $query->set( 'post_type', array( 'post', 'wma_movie' ) );
+    }
+    
+    return $query;
+}
+
 function wma_add_movies_metaboxes() {
     add_meta_box(
             'wma_movie_details', 
@@ -124,4 +132,74 @@ function wma_movie_details_save($post_id) {
     update_post_meta($post_id, '_wma_rating', $rating);
     update_post_meta($post_id, '_wma_year', $year);
     update_post_meta($post_id, '_wma_description', $description);
+}
+
+function wma_create_rewrite_rules($rules){
+    $newRule = array('movies-api' => 'index.php?movies-api=1');
+    
+    $newRules = $newRule + $rules;
+    
+    return $newRules;
+}
+
+function wma_add_query_vars($qvars) {
+    $qvars = array('movies-api');
+    return $qvars;
+}
+
+function wma_flush_rewrite_rules() {
+    global $wp_rewrite;
+    $wp_rewrite->flush_rules();
+}
+
+function wma_template_redirect_intercept() {
+    global $wp_query;
+    if ($wp_query->get('movies-api')) {
+        wma_list_movies();
+        exit;
+    }
+}
+
+function wma_list_movies(){
+    $json_obj = array();
+    
+    $movies = array();
+    
+    $args = array( 'post_type' => 'wma_movie' );
+    
+    $results = new WP_Query( $args );
+
+    $i = 0;
+    
+    while($results->have_posts()) {
+        $results->the_post();
+        
+        $post_id = $results->post->ID;
+        
+        $post_title = get_the_title($post_id);
+        $poster_url = sanitize_text_field(
+                get_post_meta($post_id, '_wma_poster_url', true));
+        $rating = absint(get_post_meta($post_id, '_wma_rating', true));
+        $year = absint(get_post_meta($post_id, '_wma_year', true));
+        $description = html_entity_decode(get_post_meta($post_id, 
+                '_wma_description', true));
+        
+        $movie = array(
+            "id" => $post_id,
+            "title" => $post_title,
+            "poster_url" => $poster_url,
+            "rating" => $rating,
+            "year" => $year,
+            "short_description" => $description
+        );
+
+        $movies[$i] = $movie;
+
+        $i++;
+    }
+
+    $json_obj["data"] = $movies;
+
+    header('Content-Type: application/json');
+    echo json_encode($json_obj);
 }
