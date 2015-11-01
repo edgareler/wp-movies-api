@@ -11,4 +11,8 @@ License URI: https://www.gnu.org/licenses/gpl.html
 
 require_once(dirname( __FILE__ ) . '/includes/functions.php');
 
-add_action( 'init', 'create_post_type' );
+add_action( 'init', 'wma_create_post_type' );
+
+add_action( 'add_meta_boxes', 'wma_add_movies_metaboxes' );
+
+add_action( 'save_post', 'wma_movie_details_save' );
